@@ -59,6 +59,7 @@ input[type="text"] {
   border: 1px solid #10a37f;
   border-radius: 4px;
   margin-bottom: 24px;
+  contenteditable="true"
 }
 
 ::placeholder {
@@ -179,6 +180,7 @@ input[type="submit"] {
   flex-direction: column;
   align-items: center;
   padding-top: 60px;
+  overflow-y: auto;
 }
 
 #chat-side {
@@ -197,7 +199,7 @@ input[type="submit"] {
 #chat-side .conversation-button {
   width: 130px;
   background-color: #fff;
-  border: 1px solid #fff;
+  border: 0px solid #fff;
   border-radius: 4px;
   display: block;
   text-decoration: none;
@@ -208,4 +210,8 @@ input[type="submit"] {
   color:#fff;
   font-size: large;
   font-weight: bold;
+}
+
+#chat-side .conversation-button.activate {
+  background-color: #999999;
 }

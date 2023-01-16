@@ -14,7 +14,7 @@
     <div class="side-title" >对话列表</div>
     {% if ids %}
     {% for id in ids %}
-    <a href='/?conversation={{ id }}' class="conversation-button" >{{ id }}</a>
+    <a href='/?conversation={{ id }}' class="conversation-button" id="conv-{{ id }}">{{ id }}</a>
     {% endfor %}
     {% endif %}
     <!-- <a href='#' class="conversation-button clear" onclick="clear_conversation()">清空当前对话</a> -->
@@ -24,7 +24,7 @@
   <img src="{{ url_for('static', filename='dog.png') }}" class="icon" />
   <h3>你要问啥？</h3>
   <form action="/" method="post" onsubmit="on_submit(this)">
-    <input type="text" name="question" placeholder="请输入问题" required />
+    <input type="text" name="question" placeholder="请输入问题" required contenteditable="true"/>
     <input type="text" name="conversation_id" value="" hidden/>
     <input type="submit" value="确认" />
   </form>
@@ -41,12 +41,12 @@
     <div class="result-item">
     <div class="result answer"><span style="font-weight: bold;">回答：</span><span style="white-space: pre-line;">{{ record.answer }}</span>
     {% if record.answer_voice %}
-      <div class="wifi-symbol {{ record.record_id }}" onclick="play_or_pause_audio('{{ record.record_id }}')">
+      <div class="wifi-symbol" id="symbol-{{ record.record_id }}" onclick="play_or_pause_audio('{{ record.record_id }}')">
         <div class="wifi-circle first"></div>
         <div class="wifi-circle second"></div>
         <div class="wifi-circle third"></div>
       </div>
-      <audio class="answer-audio {{ record.record_id }}"
+      <audio class="answer-audio" id="audio-{{ record.record_id }}"
         src="{{ url_for('static', filename=record.answer_voice.replace('static/', '')) }}"
         onplay="on_audio_play('{{ record.record_id }}')"
         onpause="on_audio_pause('{{ record.record_id }}')"
@@ -65,8 +65,9 @@
   <script>
     var voice_auto_play = ''
     var voice_playing = ''
-    function play_or_pause_audio(answer_voice) {
-      var audio = document.getElementsByClassName('answer-audio '+ answer_voice)[0]
+
+    function play_or_pause_audio(id) {
+      var audio = document.getElementById('audio-'+ id)
       if (audio.paused) {
         audio.play()
       } else {
@@ -74,26 +75,26 @@
       }
     }
 
-    function on_audio_play(answer_voice) {
-      if (voice_playing !== '' & voice_playing !== answer_voice) {
+    function on_audio_play(id) {
+      if (voice_playing !== '' & voice_playing !== id) {
         play_or_pause_audio(voice_playing)
       }
-      voice_playing = answer_voice
-      var symbol = document.getElementsByClassName('wifi-symbol '+ answer_voice)[0]
+      voice_playing = id
+      var symbol = document.getElementById('symbol-'+ id)
       symbol.classList.add('audio-playing')
     }
 
-    function on_audio_pause(answer_voice) {
-      if (voice_playing === answer_voice) {
+    function on_audio_pause(id) {
+      if (voice_playing === id) {
         voice_playing = ''
       }
-      var symbol = document.getElementsByClassName('wifi-symbol '+ answer_voice)[0]
+      var symbol = document.getElementById('symbol-'+ id)
       symbol.classList.remove('audio-playing')
     }
 
-    function check_and_play(answer_voice) {
-      if (answer_voice === voice_auto_play) {
-        play_or_pause_audio(answer_voice)
+    function check_and_play(id) {
+      if (id === voice_auto_play) {
+        play_or_pause_audio(id)
       }
     }
 
@@ -104,8 +105,9 @@
       if(r!=null)return  unescape(r[2]); return null;
     }
 
+    var conversation_id = get_query_string('conversation')
+
     function on_submit(obj) {
-      var conversation_id = get_query_string('conversation')
       if (conversation_id) {
         obj.conversation_id.value = conversation_id
       } else {
@@ -113,10 +115,12 @@
       }
       return true
     }
+
+
+    if (conversation_id) {
+      voice_auto_play = document.getElementsByClassName('answer-audio')[0].id.slice(6)
+      document.getElementById('conv-'+conversation_id).classList.add('activate')
+    }
+    
   </script>
-  {% if conversation %}
-  <script>
-    voice_auto_play = "{{ conversation.records[0].record_id }}"
-  </script>
-  {% endif %}
 </body>
