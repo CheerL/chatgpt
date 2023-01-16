@@ -1,0 +1,6 @@
+static/answer/*
+static/question/*
+.vscode
+.env
+.python-version
+__pycache__

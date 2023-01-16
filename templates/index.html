@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<head>
+  <title>ChatGPT Demo</title>
+  <link
+    rel="shortcut icon"
+    href="{{ url_for('static', filename='dog.png') }}"
+  />
+  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
+</head>
+
+<body>
+  <div id="app">
+  <div id="chat-side">
+    <div class="side-title" >对话列表</div>
+    {% if ids %}
+    {% for id in ids %}
+    <a href='/?conversation={{ id }}' class="conversation-button" >{{ id }}</a>
+    {% endfor %}
+    {% endif %}
+    <!-- <a href='#' class="conversation-button clear" onclick="clear_conversation()">清空当前对话</a> -->
+    <a href='/' class="conversation-button new" >新建对话</a>
+  </div>
+  <div id="chat-body">
+  <img src="{{ url_for('static', filename='dog.png') }}" class="icon" />
+  <h3>你要问啥？</h3>
+  <form action="/" method="post" onsubmit="on_submit(this)">
+    <input type="text" name="question" placeholder="请输入问题" required />
+    <input type="text" name="conversation_id" value="" hidden/>
+    <input type="submit" value="确认" />
+  </form>
+  <div class="result-box">
+    {% if conversation %}
+    {% for record in conversation.records %}
+    {% if record.question %}
+    <div class="result-item">
+    <div class="result question"><span style="font-weight: bold;">问题：</span>{{ record.question }}</div>
+    </div>
+    {% endif %}
+
+    {% if record.answer %}
+    <div class="result-item">
+    <div class="result answer"><span style="font-weight: bold;">回答：</span><span style="white-space: pre-line;">{{ record.answer }}</span>
+    {% if record.answer_voice %}
+      <div class="wifi-symbol {{ record.record_id }}" onclick="play_or_pause_audio('{{ record.record_id }}')">
+        <div class="wifi-circle first"></div>
+        <div class="wifi-circle second"></div>
+        <div class="wifi-circle third"></div>
+      </div>
+      <audio class="answer-audio {{ record.record_id }}"
+        src="{{ url_for('static', filename=record.answer_voice.replace('static/', '')) }}"
+        onplay="on_audio_play('{{ record.record_id }}')"
+        onpause="on_audio_pause('{{ record.record_id }}')"
+        oncanplay="check_and_play('{{ record.record_id }}')"
+        ></audio>
+      {% endif %}
+    </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+  </div>
+  </div>
+  </div>
+
+  <script>
+    var voice_auto_play = ''
+    var voice_playing = ''
+    function play_or_pause_audio(answer_voice) {
+      var audio = document.getElementsByClassName('answer-audio '+ answer_voice)[0]
+      if (audio.paused) {
+        audio.play()
+      } else {
+        audio.pause()
+      }
+    }
+
+    function on_audio_play(answer_voice) {
+      if (voice_playing !== '' & voice_playing !== answer_voice) {
+        play_or_pause_audio(voice_playing)
+      }
+      voice_playing = answer_voice
+      var symbol = document.getElementsByClassName('wifi-symbol '+ answer_voice)[0]
+      symbol.classList.add('audio-playing')
+    }
+
+    function on_audio_pause(answer_voice) {
+      if (voice_playing === answer_voice) {
+        voice_playing = ''
+      }
+      var symbol = document.getElementsByClassName('wifi-symbol '+ answer_voice)[0]
+      symbol.classList.remove('audio-playing')
+    }
+
+    function check_and_play(answer_voice) {
+      if (answer_voice === voice_auto_play) {
+        play_or_pause_audio(answer_voice)
+      }
+    }
+
+    function get_query_string(name)
+    {
+      var reg = new RegExp("(^|&)"+ name +"=([^&]*)(&|$)");
+      var r = window.location.search.substr(1).match(reg);
+      if(r!=null)return  unescape(r[2]); return null;
+    }
+
+    function on_submit(obj) {
+      var conversation_id = get_query_string('conversation')
+      if (conversation_id) {
+        obj.conversation_id.value = conversation_id
+      } else {
+        obj.conversation_id.value = ''
+      }
+      return true
+    }
+  </script>
+  {% if conversation %}
+  <script>
+    voice_auto_play = "{{ conversation.records[0].record_id }}"
+  </script>
+  {% endif %}
+</body>

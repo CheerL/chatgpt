@@ -1,0 +1,211 @@
+@font-face {
+  font-family: "ColfaxAI";
+  src: url(https://cdn.openai.com/API/fonts/ColfaxAIRegular.woff2) format("woff2"),
+    url(https://cdn.openai.com/API/fonts/ColfaxAIRegular.woff) format("woff");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "ColfaxAI";
+  src: url(https://cdn.openai.com/API/fonts/ColfaxAIBold.woff2) format("woff2"),
+    url(https://cdn.openai.com/API/fonts/ColfaxAIBold.woff) format("woff");
+  font-weight: bold;
+  font-style: normal;
+}
+
+body,
+input {
+  font-size: 16px;
+  line-height: 24px;
+  color: #353740;
+  font-family: "ColfaxAI", Helvetica, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  /* padding-top: 60px; */
+}
+#app {
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  display: flex;
+}
+
+.icon {
+  width: 34px;
+}
+
+h3 {
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: bold;
+  color: #202123;
+  margin: 16px 0 40px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  /* width: 320px; */
+  width: 90%;
+  max-width: 800px;
+}
+
+input[type="text"] {
+  padding: 12px 16px;
+  border: 1px solid #10a37f;
+  border-radius: 4px;
+  margin-bottom: 24px;
+}
+
+::placeholder {
+  color: #8e8ea0;
+  opacity: 1;
+}
+
+input[type="submit"] {
+  padding: 12px 0;
+  background-color: #10a37f;
+  border: none;
+  border-radius: 4px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.result-box {
+  margin-top: 3em;
+  font-size: medium;
+  width: 90%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+}
+
+.result-item {
+  width: 100%;
+  /* height: fit-content; */
+}
+
+.result {
+  margin-top: 0.5em;
+  width: fit-content;
+  /* height: fit-content; */
+  
+  border-radius: 7px;
+  border: 1px solid #10a37f;
+  padding: 0.75em;
+  text-align: left;
+  position: relative;
+}
+
+.question {
+  float: right;
+  background-color: #10a37f;
+}
+
+.answer {
+  float: left;
+  background-color: #fff;
+  padding-right: 1.5em;
+}
+
+.wifi-symbol {
+  width: 30px;
+  height: 30px;
+  box-sizing: border-box;
+  overflow: hidden;
+  transform: rotate(135deg);
+  position: absolute;
+  top: 0.5em;
+  right: -0.7em;
+}
+
+.wifi-circle {
+  border: 3px solid #999999;
+  border-radius: 50%;
+  position: absolute;
+}
+
+.first {
+  width: 0px;
+  height: 0px;
+  top: 27px;
+  left: 27px;
+}
+
+.second {
+  width: 15px;
+  height: 15px;
+  top: 21px;
+  left: 21px;
+  
+}
+
+.third {
+  width: 24px;
+  height: 24px;
+  top: 15px;
+  left: 15px;
+}
+
+.wifi-symbol.audio-playing .second {
+  animation: fadeInOut 1s infinite 0.2s;
+}
+
+.wifi-symbol.audio-playing .third {
+  animation: fadeInOut 1s infinite 0.4s;
+}
+
+
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    /*初始状态 透明度为0*/
+  }
+
+  100% {
+    opacity: 1;
+    /*结尾状态 透明度为1*/
+  }
+}
+
+#chat-body {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 60px;
+}
+
+#chat-side {
+  width: 150px;
+  height: 100%;
+  background-color: #202123;
+}
+
+#chat-side div, #chat-side a {
+  font-size: 16px;
+  line-height: 2em;
+  margin: 15px 10px 0 10px;
+  text-align: center;
+}
+
+#chat-side .conversation-button {
+  width: 130px;
+  background-color: #fff;
+  border: 1px solid #fff;
+  border-radius: 4px;
+  display: block;
+  text-decoration: none;
+  color: #202123;
+}
+
+#chat-side .side-title {
+  color:#fff;
+  font-size: large;
+  font-weight: bold;
+}
