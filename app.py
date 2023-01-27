@@ -1,5 +1,6 @@
 import os
 import asyncio
+import time
 import uuid
 
 from chat_history import ChatConversation
@@ -9,7 +10,16 @@ from flask import Flask, redirect, render_template, request, url_for
 app = Flask(__name__)
 session_token = os.getenv("CHATGPT_TOKEN")
 chat = Chatbot(session_token)
+try:
+    loop = asyncio.get_event_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
+# loop.run_until_complete(chat.wait_for_ready())
+while not chat.ready:
+    time.sleep(1)
+    print(chat.ready)
 print('ChatGPT starts')
 
 question_dir = os.path.join('static', 'question')
@@ -21,13 +31,6 @@ def index():
     if request.method == "POST":
         question = request.form["question"]
         conversation_id = request.form['conversation_id'] or str(uuid.uuid4())
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        loop.run_until_complete(chat.wait_for_ready())
         response = loop.run_until_complete(chat.ask(question, conversation_id))
         record_id = response['messageId']
         answer = response['answer']
