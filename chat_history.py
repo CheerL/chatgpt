@@ -66,6 +66,7 @@ class ChatConversation:
                 'ts': record.ts
             }
             for record_id, record in self.records.items()
+            if record_id
         ]
         records.sort(key=lambda record: record['ts'], reverse=sort_reverse)
         return {

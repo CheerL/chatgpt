@@ -43,7 +43,7 @@ def index():
     conversation_id = request.args.get("conversation", '')
     conversation = chat_history.get(conversation_id, None)
     if conversation:
-        print(conversation.to_info())
+        # print(conversation.to_info())
         return render_template("index.html", conversation=conversation.to_info(), ids=list(chat_history.keys()))
 
     return render_template("index.html", ids=list(chat_history.keys()))
