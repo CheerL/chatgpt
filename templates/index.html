@@ -118,9 +118,12 @@
 
 
     if (conversation_id) {
-      voice_auto_play = document.getElementsByClassName('answer-audio')[0].id.slice(6)
       document.getElementById('conv-'+conversation_id).classList.add('activate')
     }
-    
+
+    var audios = document.getElementsByClassName('answer-audio')
+    if (audios.length > 0) {
+      voice_auto_play = audios[0].id.slice(6)
+    }
   </script>
 </body>

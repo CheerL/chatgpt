@@ -36,7 +36,7 @@ def index():
             chat_history[conversation_id] = conversation
 
         record = conversation.add_record(record_id, question, answer)
-        record.answer_tts()
+        # record.answer_tts()
         return redirect(url_for("index", conversation=conversation_id))
 
 
