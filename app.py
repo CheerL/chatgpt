@@ -16,10 +16,7 @@ except RuntimeError:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-# loop.run_until_complete(chat.wait_for_ready())
-while not chat.ready:
-    time.sleep(1)
-    print(chat.ready)
+loop.run_until_complete(chat.wait_for_ready())
 print('ChatGPT starts')
 
 question_dir = os.path.join('static', 'question')
