@@ -1,6 +1,7 @@
 import Side from './Side'
 import Body from './Body'
 import { Context } from './Store';
+import React from 'react';
 
 
 function App() {

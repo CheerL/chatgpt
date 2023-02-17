@@ -1,4 +1,4 @@
-
+import React from 'react';
 import { ChatAnwser, ChatQuestion } from "./ChatItem" 
 
 const Body = () => <div className='body bg-white flex-grow h-screen flex flex-col items-center w-auto relative'>

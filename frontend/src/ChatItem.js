@@ -1,3 +1,5 @@
+import React from 'react';
+
 const ChatQuestion = () => {
   return <ChatItem text='222' question />
 }

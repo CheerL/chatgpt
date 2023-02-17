@@ -1,3 +1,4 @@
+import React from 'react';
 import { Context } from "./Store"
 
 const Side = () => {
