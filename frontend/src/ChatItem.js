@@ -1,20 +1,20 @@
 import React from 'react';
 
-const ChatQuestion = () => {
-  return <ChatItem text='222' question />
+const ChatQuestion = ({ text }) => {
+  return <ChatItem text={text} question />
 }
 
-const ChatAnwser = () => {
-  return <ChatItem text='111111111111' />
+const ChatAnswer = ({ text }) => {
+  return <ChatItem text={text} />
 }
 
 const ChatItem = ({ text, voice, question }) => {
   return <div className='w-full'>
   <div className={"mt-2 w-fit rounded-md border p-2 border-[#10a37f] text-left relative "+ (question ? 'bg-primary float-right': 'float-left')}>
     <span className='font-bold'>
-      {question?'问题':'回答'}：
+      {question?'问题: ':'回答: '}
     </span>
-    <span className='whitespace-pre-line'>{ text }</span>
+    <span className='whitespace-pre-line'>{text}</span>
       {voice ?
       <>
         <div 
@@ -41,4 +41,4 @@ const ChatItem = ({ text, voice, question }) => {
     </div>
 }
 
-export {ChatAnwser, ChatQuestion}
+export {ChatAnswer, ChatQuestion}

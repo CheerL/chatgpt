@@ -5,6 +5,7 @@ static/question/*
 .python-version
 __pycache__
 cookies.json
+cookies.new.json
 
 
 

@@ -9,8 +9,7 @@ function App() {
   window.store = store
 
   return (
-    
-    <div className="App flex flex-row">
+    <div className="flex flex-row fixed w-full h-full">
       <Side />
       <Body />
     </div>
