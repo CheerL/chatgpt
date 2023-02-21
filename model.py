@@ -2,14 +2,17 @@ import os
 import time
 from speech import text_to_speech
 from EdgeGPT import Chatbot
-from datetime import datetime
+from datetime import datetime, timezone
 
 COOKIES_PATH = os.getenv("COOKIES_PATH")
 
 def str2ts(date_str):
     # date_str = "2023-02-21T08:31:23.4009791+00:00"
-    date_obj = datetime.strptime(date_str[:26], "%Y-%m-%dT%H:%M:%S.%f")
-    ts = date_obj.timestamp()
+    ts = datetime.strptime(
+        date_str[:26], "%Y-%m-%dT%H:%M:%S.%f"
+    ).replace(
+        tzinfo=timezone.utc
+    ).timestamp()
     return ts
 
 class ChatRecord:
