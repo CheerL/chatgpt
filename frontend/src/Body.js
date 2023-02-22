@@ -113,7 +113,7 @@ const AskBox = () => {
               store.loading ? '请耐心等待回答' :
                 (store.activated_conversation.live ?
                   '输入问题后点击按钮或按Ctrl+回车' :
-                  '请新建对话或切换对话')
+                  '对话已经关闭，请新建对话或切换对话')
             }
             onChange={on_change}
             onKeyDown={on_key}

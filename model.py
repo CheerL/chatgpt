@@ -136,41 +136,57 @@ class ChatConversation:
         }
         
     async def ask(self, question):
+        async def kill():
+            self.live = False
+            await self.bot.close()
+            self.bot = None
+
         if not self.live:
             return
 
         try:
             response = await self.bot.ask(question)
+            response = response['item']
             print(response)
+            if response.get('result', {}).get('value', '') != 'Success':
+                return
 
-            new_conversation_id = response['item']['conversationId']
+            new_conversation_id = response['conversationId']
             if new_conversation_id != self.conversation_id:
                 self.conversation_id = new_conversation_id
 
-            record_id = response['item']['requestId']
-            [question_item, answer_item] = response['item']['messages']
+            record_id = response['requestId']
+            [question_item, answer_item] = response['messages']
             question_ts = str2ts(question_item['timestamp'])
-            answer = answer_item['text']
+            answer = answer_item.get('text', '') or answer_item.get('hiddenText', '')
             answer_ts = str2ts(answer_item['timestamp'])
-            suggestions = [
-                response['text'] for response in
-                answer_item['suggestedResponses']
-            ]
-            sources = [
-                source for source in 
-                answer_item['adaptiveCards'][0]['body'][0]['text'].split('\n')
-                if source.startswith('[') and source.endswith('"')
-            ]
             record = self.add_record(record_id, question, answer)
             record.answer_ts = answer_ts
             record.question_ts = question_ts
-            record.suggestions += suggestions
-            record.sources += sources
             
-            if 'New topic' in answer and 'Click' in answer:
-                self.live = False
-                self.bot.close()
-                self.bot = None
+            max_times = response.get('throttling',{}).get('maxNumUserMessagesInConversation',0)
+            now_times = response.get('throttling',{}).get('numUserMessagesInConversation',0)
+            left_times = max_times - now_times
+            origin = response.get('contentOrigin', '')
+            if left_times < 0:
+                await kill()
+            elif 'New topic' in answer:
+                await kill()
+            elif origin == 'Apology' or origin == 'TurnLimiter':
+                await kill()
+            else:
+                suggestions = [
+                    s.get('text', '') for s in
+                    answer_item.get('suggestedResponses', [])
+                ]
+                sources = [
+                    source for source in 
+                    answer_item.get('adaptiveCards', [{}])[0].get('body',[{}])[0].get('text','').split('\n')
+                    if source.startswith('[') and source.endswith('"')
+                ]
+                record.suggestions += suggestions
+                record.sources += sources
+            
 
             # record.answer_tts()
             # return record

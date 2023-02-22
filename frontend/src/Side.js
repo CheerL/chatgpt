@@ -76,7 +76,6 @@ const NewConversationButton = () => {
   const { store } = Context.useStore()
   const new_id = '$$new$$'
   const on_click = () => {
-    // const new_conversation = store.add_conversation()
     store.change_activated_conversation(new_id)
   }
   return Context.useConsumer(() => <BaseConversationButton

@@ -40,7 +40,6 @@ import config from "./config"
  * @property {function(string): ConversationWithRecord} get_conversation_by_id
  * @property {function(string): null} change_activated_conversation
  * @property {function(Record[]): null} add_records
- * @property {function(string, string, boolean): Conversation} add_conversation
  * @property {function(string, Conversation): null} update_conversation
  * @property {function(): ConversationWithRecord} activated_conversation
  * @property {function(): null} load_conversation_list
@@ -85,26 +84,17 @@ const store = {
       }
     })
   },
-  add_conversation(conversation_id, name, live = true) {
-    const id_list = this.conversation_list.map(
-      conversation => conversation.conversation_id
-    )
-
-    if (id_list.includes(conversation_id)) {
-      return this.conversation_list.find(
-        conversation => conversation.conversation_id === conversation_id
-      )
-    }
-
-    const conversation = { conversation_id, name, live }
-    this.conversation_list.push(conversation)
-    return conversation
-  },
   update_conversation(conversation_id, new_conversation) {
     const index = this.conversation_list.findIndex(
       conversation => conversation.conversation_id === conversation_id
     )
-    this.conversation_list[index] = { ...this.conversation_list[index], ...new_conversation }
+    if (index >= 0) {
+      this.conversation_list[index] = { 
+        ...this.conversation_list[index], ...new_conversation 
+      }
+    } else {
+      this.conversation_list.push({conversation_id, ...new_conversation})
+    }
   },
   get activated_conversation() {
     if (
@@ -156,7 +146,7 @@ const store = {
       conversation_id
     }).then(result => {
       const { records, conversation_id, name, live } = result.data
-      this.add_conversation(conversation_id, name, live)
+      this.update_conversation(conversation_id, { name, live })
       this.add_records(records)
       this.change_activated_conversation(conversation_id)
     }).catch(e => {
