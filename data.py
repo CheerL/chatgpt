@@ -65,11 +65,13 @@ async def rename_conversation(conversation: ChatConversation):
     ).values(name=conversation.name)
     return await database.execute(query)
 
+
 async def hide_conversation(conversation: ChatConversation):
     query = conversations.update().where(
         conversations.c.conversation_id == conversation.conversation_id
     ).values(displayed=False)
     return await database.execute(query)
+
 
 async def load():
     query = conversations.select()
@@ -81,14 +83,14 @@ async def load():
         conversation = ChatConversation.create_or_get_conversation(
             conversation_db.conversation_id, conversation_db.name, live=False
         )
-        
+
         query = records.select().where(
             records.c.conversation_id == conversation.conversation_id
         )
         record_list = await database.fetch_all(query)
         for record_db in record_list:
             conversation.add_record(
-                record_db.record_id, 
+                record_db.record_id,
                 record_db.question, record_db.answer,
                 record_db.question_voice, record_db.answer_voice,
                 record_db.question_ts, record_db.answer_ts,

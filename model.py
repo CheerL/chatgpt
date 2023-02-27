@@ -175,7 +175,7 @@ class ChatConversation:
         suggestions: list[str] = [], sources: list[str] = []
     ) -> ChatRecord:
         record = ChatRecord(
-            record_id, self.conversation_id, question, answer, 
+            record_id, self.conversation_id, question, answer,
             question_voice, answer_voice,
             question_ts, answer_ts,
             self.question_dir, self.answer_dir,
@@ -226,7 +226,7 @@ class ChatConversation:
                 error_message = response.get('result', {}).get('message', '')
 
                 if status == 'InvalidSession':
-                    await kill()
+                    await self.kill()
                 return
 
             new_conversation_id = response['conversationId']
