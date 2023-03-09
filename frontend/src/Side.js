@@ -11,20 +11,25 @@ const Side = () => {
   return Context.useConsumer(() => <>
     <BurgerMenu />
     <div className='hidden md-block-important flex-grow-0' id='sidebar'>
-    <div
-      className='bg-zinc-800 w-36 h-screen flex flex-col'
-    >
-      <div className='text-white font-bold mx-4 my-4 h-6'>
-        对话列表
+      <div
+        className='bg-zinc-800 w-36 h-screen flex flex-col'
+      >
+        <div className='text-white font-bold mx-4 my-4 h-6'>
+          对话列表
+        </div>
+        <SwitchBotButton bot_type={store.bot_type} />
+        {
+          // filter conversations which bot_type matches current bot_type then show them
+          store.conversation_list
+            .filter(conversation => conversation.bot_type === store.bot_type)
+            .map(conversation => <ConversationButton
+              conversation={conversation} key={conversation.conversation_id}
+              activated={conversation.conversation_id === store.activated_conversation_id}
+            />)
+        }
+        <NewConversationButton />
+        
       </div>
-      {
-        store.conversation_list.map(conversation => <ConversationButton
-          conversation={conversation} key={conversation.conversation_id}
-          activated={conversation.conversation_id === store.activated_conversation_id}
-        />)
-      }
-      <NewConversationButton />
-    </div>
     </div>
   </>)
 }
@@ -35,14 +40,14 @@ const BurgerMenu = () => {
     sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none'
   }
   return <div
-    className='absolute md:hidden w-9 h-9 top-[10px] bg-zinc-800 z-10 cursor-pointer' 
+    className='absolute md:hidden w-9 h-9 top-[10px] bg-zinc-800 z-10 cursor-pointer'
     onClick={on_hide_click}
   >
     <div className='menu-icon top-[10px] left-[7px] relative'>
-    <span />
-    <span />
-    <span />
-  </div>
+      <span />
+      <span />
+      <span />
+    </div>
   </div>
 }
 
@@ -68,7 +73,7 @@ const ConversationButton = ({ conversation, activated }) => {
   return <BaseConversationButton
     title={conversation.name}
     activated={activated}
-    onClick={on_click} 
+    onClick={on_click}
   />
 }
 
@@ -80,7 +85,19 @@ const NewConversationButton = () => {
   }
   return Context.useConsumer(() => <BaseConversationButton
     title={'新建对话'} onClick={on_click}
-    activated={store.activated_conversation_id===new_id}
+    activated={store.activated_conversation_id === new_id}
+  />)
+}
+
+const SwitchBotButton = ({ bot_type }) => {
+  const { store } = Context.useStore()
+  const on_click = () => {
+    console.log('switch bot type', store.bot_type)
+    store.switch_bot_type(bot_type === 'bing' ? 'openai' : 'bing')
+  }
+  return Context.useConsumer(() => <BaseConversationButton
+    title={bot_type === 'bing' ? '切换到ChatGPT' : '切换到NewBing'}
+    onClick={on_click}
   />)
 }
 

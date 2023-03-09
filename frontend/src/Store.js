@@ -36,13 +36,14 @@ import config from "./config"
  * @property {string} activated_conversation_id
  * @property {Record[]} records
  * @property {boolean} loading
+ * @property {string} bot_type
  * 
  * @property {function(string): ConversationWithRecord} get_conversation_by_id
  * @property {function(string): null} change_activated_conversation
  * @property {function(Record[]): null} add_records
  * @property {function(string, Conversation): null} update_conversation
  * @property {function(): ConversationWithRecord} activated_conversation
- * @property {function(): null} load_conversation_list
+ * @property {function(string): null} load_conversation_list
  * @property {function(string): null} load_records
  * @property {function(string, string): null} ask
  */
@@ -54,6 +55,7 @@ const store = {
   activated_conversation_id: '',
   records: [],
   loading: false,
+  bot_type: 'openai',
 
   get_conversation_by_id(conversation_id) {
     if (conversation_id === undefined) {
@@ -111,14 +113,10 @@ const store = {
     return this.get_conversation_by_id(this.activated_conversation_id)
   },
 
-  load_conversation_list() {
+  load_conversation_list(bot_type='') {
     const url = `${api_url}/conversation_list`
-    axios.get(url).then(result => {
+    axios.get(url, { params: { bot_type } }).then(result => {
       this.conversation_list = result.data
-      // .map((id, idx) => ({
-      //   id: id,
-      //   name: `对话${idx + 1}`
-      // }))
     }).catch(e => {
       console.error(e)
     })
@@ -129,7 +127,7 @@ const store = {
     }
 
     const url = `${api_url}/conversation`
-    axios.get(url, { params: { conversation_id } })
+    axios.get(url, { params: { conversation_id, bot_type: this.bot_type } })
       .then(result => {
         const { records, conversation_id, name, live } = result.data
         this.update_conversation(conversation_id, { name, live })
@@ -143,7 +141,10 @@ const store = {
     this.loading = true
     axios.postForm(url, {
       question,
-      conversation_id
+      conversation_id,
+      params: {
+        bot_type: this.bot_type
+      }
     }).then(result => {
       const { records, conversation_id, name, live } = result.data
       this.update_conversation(conversation_id, { name, live })
@@ -154,6 +155,15 @@ const store = {
     }).finally(() => {
       this.loading = false
     })
+  },
+  switch_bot_type(bot_type) {
+    if (bot_type === this.bot_type) {
+      return
+    }
+
+    this.bot_type = bot_type
+    this.load_conversation_list()
+    this.activated_conversation_id = ''
   }
 }
 

@@ -1,6 +1,6 @@
 const config = {
   development: {
-    API_URL: "http://192.168.222.240:7060/gpt/api"
+    API_URL: "http://192.168.222.240:7050/gpt/api"
     // API_URL: "https://home.cheerl.space:9080/gpt/api"
   },
   production: {

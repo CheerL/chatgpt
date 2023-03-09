@@ -1,9 +1,8 @@
 import databases
 import sqlalchemy
 
-from model import ChatConversation, ChatRecord
+from model import ChatConversation, ChatRecord, BingChatConversation, OpenaiChatConversation
 
-# from pydantic import BaseModel
 
 DATABASE_URL = "sqlite:///./sqlite.db"
 # DATABASE_URL = "postgresql://user:password@postgresserver/db"
@@ -18,6 +17,9 @@ conversations = sqlalchemy.Table(
     sqlalchemy.Column("conversation_id", sqlalchemy.String, primary_key=True),
     sqlalchemy.Column("name", sqlalchemy.String),
     sqlalchemy.Column("displayed", sqlalchemy.Boolean),
+    sqlalchemy.Column("bot_type", sqlalchemy.String),
+    sqlalchemy.Column("truncated_num", sqlalchemy.Integer),
+    sqlalchemy.Column("truncated_text", sqlalchemy.String)
 )
 records = sqlalchemy.Table(
     "records",
@@ -42,22 +44,32 @@ engine = sqlalchemy.create_engine(
 )
 metadata.create_all(engine)
 
-
-async def add_conversation(conversation: ChatConversation):
-    query = conversations.insert().values(
-        displayed=True,
-        conversation_id=conversation.conversation_id,
-        name=conversation.name
-    )
-    return await database.execute(query)
-
-
 async def add_record(record: ChatRecord):
     query = records.insert().values(
         **record.to_summary()
     )
     return await database.execute(query)
 
+async def add_conversation(conversation: ChatConversation):
+    query = conversations.insert().values(
+        displayed=True,
+        conversation_id=conversation.conversation_id,
+        name=conversation.name,
+        bot_type=conversation.bot_type
+    )
+    return await database.execute(query)
+
+async def update_truncated_conversation(conversation: ChatConversation):
+    if conversation.bot_type != 'openai':
+        return
+
+    query = conversations.update().where(
+        conversations.c.conversation_id == conversation.conversation_id
+    ).values(
+        truncated_num=conversation.truncated_num,
+        truncated_text=conversation.truncated_text
+    )
+    return await database.execute(query)
 
 async def rename_conversation(conversation: ChatConversation):
     query = conversations.update().where(
@@ -65,13 +77,11 @@ async def rename_conversation(conversation: ChatConversation):
     ).values(name=conversation.name)
     return await database.execute(query)
 
-
 async def hide_conversation(conversation: ChatConversation):
     query = conversations.update().where(
         conversations.c.conversation_id == conversation.conversation_id
     ).values(displayed=False)
     return await database.execute(query)
-
 
 async def load():
     query = conversations.select()
@@ -80,9 +90,18 @@ async def load():
         if not conversation_db.displayed:
             continue
 
-        conversation = ChatConversation.create_or_get_conversation(
-            conversation_db.conversation_id, conversation_db.name, live=False
-        )
+        if conversation_db.bot_type == 'bing':
+            conversation = BingChatConversation.create_or_get_conversation(
+                conversation_id=conversation_db.conversation_id,
+                name=conversation_db.name, live=False
+            )
+        elif conversation_db.bot_type == 'openai':
+            conversation = OpenaiChatConversation.create_or_get_conversation(
+                conversation_id=conversation_db.conversation_id, 
+                name=conversation_db.name, live=True,
+                truncated_num=conversation_db.truncated_num,
+                truncated_text=conversation_db.truncated_text
+            )
 
         query = records.select().where(
             records.c.conversation_id == conversation.conversation_id
