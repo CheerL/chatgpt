@@ -59,7 +59,7 @@ async def add_conversation(conversation: ChatConversation):
     )
     return await database.execute(query)
 
-async def update_truncated_conversation(conversation: ChatConversation):
+async def truncate_conversation(conversation: ChatConversation):
     if conversation.bot_type != 'openai':
         return
 
@@ -77,9 +77,9 @@ async def rename_conversation(conversation: ChatConversation):
     ).values(name=conversation.name)
     return await database.execute(query)
 
-async def hide_conversation(conversation: ChatConversation):
+async def hide_conversation(conversation_id: str):
     query = conversations.update().where(
-        conversations.c.conversation_id == conversation.conversation_id
+        conversations.c.conversation_id == conversation_id
     ).values(displayed=False)
     return await database.execute(query)
 

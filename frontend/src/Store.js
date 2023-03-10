@@ -20,6 +20,7 @@ import config from "./config"
  * @property {string} conversation_id - 会话ID
  * @property {string} name - 会话名称
  * @property {boolean} live
+ * @property {string} bot_type
  */
 
 /**
@@ -46,6 +47,8 @@ import config from "./config"
  * @property {function(string): null} load_conversation_list
  * @property {function(string): null} load_records
  * @property {function(string, string): null} ask
+ * @property {function(string, string, string): null} rename_conversation
+ * @property {function(string, string): null} delete_conversation
  */
 
 const api_url = config[process.env.NODE_ENV].API_URL
@@ -66,7 +69,7 @@ const store = {
     )
     const records = this.records
       .filter(record => record.conversation_id === conversation_id)
-      
+
     records.sort((a, b) => a.answer_ts - b.answer_ts)
     return {
       ...conversation,
@@ -91,11 +94,11 @@ const store = {
       conversation => conversation.conversation_id === conversation_id
     )
     if (index >= 0) {
-      this.conversation_list[index] = { 
-        ...this.conversation_list[index], ...new_conversation 
+      this.conversation_list[index] = {
+        ...this.conversation_list[index], ...new_conversation
       }
     } else {
-      this.conversation_list.push({conversation_id, ...new_conversation})
+      this.conversation_list.push({ conversation_id, ...new_conversation })
     }
   },
   get activated_conversation() {
@@ -113,7 +116,7 @@ const store = {
     return this.get_conversation_by_id(this.activated_conversation_id)
   },
 
-  load_conversation_list(bot_type='') {
+  load_conversation_list(bot_type = '') {
     const url = `${api_url}/conversation_list`
     axios.get(url, { params: { bot_type } }).then(result => {
       this.conversation_list = result.data
@@ -141,13 +144,14 @@ const store = {
     this.loading = true
     axios.postForm(url, {
       question,
-      conversation_id,
+      conversation_id
+    }, {
       params: {
         bot_type: this.bot_type
       }
     }).then(result => {
-      const { records, conversation_id, name, live } = result.data
-      this.update_conversation(conversation_id, { name, live })
+      const { records, conversation_id, name, live, bot_type } = result.data
+      this.update_conversation(conversation_id, { name, live, bot_type })
       this.add_records(records)
       this.change_activated_conversation(conversation_id)
     }).catch(e => {
@@ -164,6 +168,39 @@ const store = {
     this.bot_type = bot_type
     this.load_conversation_list()
     this.activated_conversation_id = ''
+  },
+  rename_conversation(conversation_id, name, bot_type) {
+    const url = `${api_url}/conversation`
+    axios.post(url, {
+      conversation_id,
+      name,
+      bot_type
+    }).then(result => {
+      console.log(result)
+      this.update_conversation(conversation_id, { name })
+    }).catch(e => {
+      console.error(e)
+    })
+  },
+  delete_conversation(conversation_id, bot_type) {
+    const url = `${api_url}/conversation`
+    axios.delete(url, {
+      params: {
+        conversation_id,
+        bot_type
+      }
+    }).then(result => {
+      console.log(result)
+      const index = this.conversation_list.findIndex(
+        conversation => conversation.conversation_id === conversation_id
+      )
+      if (index >= 0) {
+        this.conversation_list.splice(index, 1)
+      }
+      this.activated_conversation_id = ''
+    }).catch(e => {
+      console.error(e)
+    })
   }
 }
 

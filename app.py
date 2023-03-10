@@ -1,20 +1,20 @@
 import os
 
 from model import (
-    BingChatConversation, 
+    BingChatConversation,
     OpenaiChatConversation,
     COOKIES_PATH
 )
 from data import (
     database,
     add_conversation,
-    update_truncated_conversation,
+    truncate_conversation,
     rename_conversation,
     hide_conversation,
     add_record,
     load
 )
-from fastapi import FastAPI, Form, Query
+from fastapi import FastAPI, Form, Query, Body
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -32,15 +32,17 @@ app.add_middleware(
 )
 scheduler = AsyncIOScheduler()
 
+
 def get_conversation_class(
-        bot_type: str=DEFAULT_BOT_TYPE
-    ) -> OpenaiChatConversation | BingChatConversation:
+    bot_type: str = DEFAULT_BOT_TYPE
+) -> OpenaiChatConversation | BingChatConversation:
     if bot_type == 'bing':
         return BingChatConversation
     elif bot_type == 'openai':
         return OpenaiChatConversation
 
     raise ValueError(f'Unknown bot_type: {bot_type}')
+
 
 @app.on_event('startup')
 async def startup():
@@ -70,7 +72,8 @@ def get_cookies():
         <textarea name="cookies" style="width: 100%; height: 90%;">{cookies}</textarea>
         <input type="submit" value="提交" style="width:100%;margin-top: 4px;">
     </form>'''
-    
+
+
 @app.post(f"{API_PREFIX}/api/cookies")
 def update_cookies(cookies=Form()):
     with open(COOKIES_PATH, 'w') as file:
@@ -80,12 +83,13 @@ def update_cookies(cookies=Form()):
 
 
 @app.get(f"{API_PREFIX}/api/conversation_list")
-def get_conversation_list(bot_type: str=''):
-    # 
+def get_conversation_list(bot_type: str = ''):
+    #
     if bot_type:
         conversation_list = get_conversation_class(bot_type).conversation_list
     else:
-        conversation_list = BingChatConversation.conversation_list + OpenaiChatConversation.conversation_list
+        conversation_list = BingChatConversation.conversation_list + \
+            OpenaiChatConversation.conversation_list
 
     return [
         conversation.to_summary() for conversation
@@ -95,17 +99,17 @@ def get_conversation_list(bot_type: str=''):
 
 @app.post(f"{API_PREFIX}/api/question")
 async def ask_question(
-        question=Form(), conversation_id=Form(default=''), 
-        bot_type: str=Query(DEFAULT_BOT_TYPE, regex='^(bing|openai)$')
-    ):
+    question=Form(), conversation_id=Form(default=''),
+    bot_type: str = Query(DEFAULT_BOT_TYPE, regex='^(bing|openai)$')
+):
     if conversation_id == '$$new$$':
         conversation_id = ''
 
     ConversationClass = get_conversation_class(bot_type)
-    conversation = ConversationClass.create_or_get_conversation(conversation_id)
+    conversation = ConversationClass.create_or_get_conversation(
+        conversation_id)
 
     record = await conversation.ask(question)
-    
 
     if record:
         if not conversation_id:
@@ -115,7 +119,7 @@ async def ask_question(
             )
         else:
             scheduler.add_job(
-                update_truncated_conversation, args=[conversation],
+                truncate_conversation, args=[conversation],
                 trigger='date'
             )
 
@@ -127,7 +131,7 @@ async def ask_question(
 
 
 @app.get(f"{API_PREFIX}/api/conversation")
-def get_conversation(conversation_id, bot_type: str=DEFAULT_BOT_TYPE):
+def get_conversation(conversation_id, bot_type: str = DEFAULT_BOT_TYPE):
     ConversationClass = get_conversation_class(bot_type)
     conversation = ConversationClass.get_conversation(conversation_id)
     if conversation:
@@ -136,7 +140,11 @@ def get_conversation(conversation_id, bot_type: str=DEFAULT_BOT_TYPE):
 
 
 @app.post(f"{API_PREFIX}/api/conversation")
-def update_conversation(conversation_id, name, bot_type: str=DEFAULT_BOT_TYPE):
+def update_conversation(
+    conversation_id: str = Body(''),
+    name: str = Body(''),
+    bot_type: str = Body(DEFAULT_BOT_TYPE)
+):
     ConversationClass = get_conversation_class(bot_type)
     conversation = ConversationClass.get_conversation(conversation_id)
     if conversation:
@@ -151,13 +159,13 @@ def update_conversation(conversation_id, name, bot_type: str=DEFAULT_BOT_TYPE):
 
 
 @app.delete(f"{API_PREFIX}/api/conversation")
-def delete_conversation(conversation_id, bot_type: str=DEFAULT_BOT_TYPE):
+def delete_conversation(conversation_id, bot_type: str = DEFAULT_BOT_TYPE):
     ConversationClass = get_conversation_class(bot_type)
     ConversationClass.remove_conversation(conversation_id)
-    
+
     scheduler.add_job(
         hide_conversation, args=[conversation_id],
         trigger='date'
     )
-    
+
     return get_conversation_list(bot_type)
