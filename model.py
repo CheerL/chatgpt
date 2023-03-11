@@ -12,16 +12,12 @@ from datetime import datetime, timezone
 
 import websockets.client as websockets
 
-COOKIES_PATH = os.getenv("COOKIES_PATH")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_SYSTEM_PROMPT = os.getenv("OPENAI_SYSTEM_PROMPT")
+COOKIES_PATH = os.getenv("COOKIES_PATH", '')
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", '')
+OPENAI_SYSTEM_PROMPT = os.getenv("OPENAI_SYSTEM_PROMPT", '')
 MAX_WAIT_TIME = 5 * 60 * 60
 
-# openai.api_key = OPENAI_API_KEY
-
-
 def str2ts(date_str):
-    # date_str = "2023-02-21T08:31:23.4009791+00:00"
     ts = datetime.strptime(
         date_str[:26], "%Y-%m-%dT%H:%M:%S.%f"
     ).replace(
@@ -70,7 +66,7 @@ class ChatRecord:
     def question_tts(self) -> None:
         self._tts('question')
 
-    def to_summary(self) -> dict[str, str]:
+    def to_summary(self) -> dict[str, str | float | list[str]]:
         return {
             'record_id': self.record_id,
             'conversation_id': self.conversation_id,
@@ -88,11 +84,13 @@ class ChatRecord:
 class ChatConversation:
     question_dir = os.path.join('static', 'question')
     answer_dir = os.path.join('static', 'answer')
-    conversation_list: list[Type['ChatConversation']] = []
+    conversation_list: list['ChatConversation'] = []
     bot_type = ''
 
     @classmethod
-    def get_conversation(cls, conversation_id: str) -> Type['ChatConversation'] | None:
+    def get_conversation(
+        cls, conversation_id: str
+    ) -> Type['ChatConversation'] | None:
         for conversation in cls.conversation_list:
             if conversation.conversation_id == conversation_id:
                 return conversation
@@ -100,8 +98,9 @@ class ChatConversation:
         return None
 
     @classmethod
-    def create_or_get_conversation(
-        cls, conversation_id: str = '', name: str = '', live: bool = True,
+    def create_conversation(
+        cls, conversation_id: str = '', 
+        name: str = '', live: bool = True,
         **kwargs
     ) -> Type['ChatConversation']:
         conversation = cls.get_conversation(conversation_id)
@@ -172,19 +171,21 @@ class ChatConversation:
     def get_record(self, record_id: str) -> ChatRecord | None:
         return self.records.get(record_id, None)
 
-    def to_info(self, sort_reverse: bool = True) -> dict[str, str]:
+    def to_info(
+        self, sort_reverse: bool = True
+    ) -> dict[str, str | bool | list[dict[str, str | float | list[str]]]]:
         records = [
             record.to_summary()
             for record_id, record in self.records.items()
             if record_id
         ]
         records.sort(
-            key=lambda record: record['answer_ts'], reverse=sort_reverse)
-        info = self.to_summary()
-        info.update({'records': records})
-        return info
+            key=lambda record: record['answer_ts'],
+            reverse=sort_reverse
+        )
+        return {'records': records, **self.to_summary()}
 
-    def to_summary(self) -> dict[str, str]:
+    def to_summary(self) -> dict[str, str | bool]:
         return {
             'conversation_id': self.conversation_id,
             'name': self.name,
@@ -200,8 +201,9 @@ class ChatConversation:
 class BingChatConversation(ChatConversation):
     question_dir = os.path.join('static', 'question', 'bing')
     answer_dir = os.path.join('static', 'answer', 'bing')
-    conversation_list: list[Type['BingChatConversation']] = []
+    conversation_list: list['BingChatConversation'] = []
     bot_type = 'bing'
+    cookies_path = COOKIES_PATH
 
     @classmethod
     async def check_conversations(cls) -> None:
@@ -225,7 +227,7 @@ class BingChatConversation(ChatConversation):
     ) -> None:
         super().__init__(conversation_id, name, question_dir, answer_dir, live)
         if live:
-            self.bot = Chatbot(cookiePath=COOKIES_PATH)
+            self.bot = Chatbot(cookiePath=self.cookies_path)
             self.conversation_id = self.bot.chat_hub.request.conversation_id
         else:
             self.bot = None
@@ -318,7 +320,7 @@ class BingChatConversation(ChatConversation):
 class OpenaiChatConversation(ChatConversation):
     question_dir = os.path.join('static', 'question', 'openai')
     answer_dir = os.path.join('static', 'answer', 'openai')
-    conversation_list: list[Type['OpenaiChatConversation']] = []
+    conversation_list: list['OpenaiChatConversation'] = []
     bot_type = 'openai'
 
     def __init__(

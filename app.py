@@ -1,26 +1,15 @@
 import os
 
-from model import (
-    BingChatConversation,
-    OpenaiChatConversation,
-    COOKIES_PATH
-)
-from data import (
-    database,
-    add_conversation,
-    truncate_conversation,
-    rename_conversation,
-    hide_conversation,
-    add_record,
-    load
-)
+from typing import Type
+from model import BingChatConversation, OpenaiChatConversation
+from database import ChatDatabase
 from fastapi import FastAPI, Form, Query, Body
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 API_PREFIX = os.getenv('API_PREFIX')
-DEFAULT_BOT_TYPE = os.getenv('DEFAULT_BOT_TYPE')
+DEFAULT_BOT_TYPE = os.getenv('DEFAULT_BOT_TYPE', '')
 
 app = FastAPI()
 app.add_middleware(
@@ -31,11 +20,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 scheduler = AsyncIOScheduler()
+chat_db = ChatDatabase()
 
 
 def get_conversation_class(
     bot_type: str = DEFAULT_BOT_TYPE
-) -> OpenaiChatConversation | BingChatConversation:
+) -> Type[OpenaiChatConversation] | Type[BingChatConversation]:
     if bot_type == 'bing':
         return BingChatConversation
     elif bot_type == 'openai':
@@ -51,19 +41,19 @@ async def startup():
         BingChatConversation.check_conversations,
         'interval', minutes=1
     )
-    await database.connect()
-    await load()
+    await chat_db.database.connect()
+    await chat_db.load()
 
 
 @app.on_event('shutdown')
 async def shutdown():
     scheduler.shutdown()
-    await database.disconnect()
+    await chat_db.database.disconnect()
 
 
 @app.get(f"{API_PREFIX}/api/cookies", response_class=HTMLResponse)
 def get_cookies():
-    with open(COOKIES_PATH, 'r') as file:
+    with open(BingChatConversation.cookies_path, 'r') as file:
         cookies = file.read()
 
     return f'''
@@ -76,7 +66,7 @@ def get_cookies():
 
 @app.post(f"{API_PREFIX}/api/cookies")
 def update_cookies(cookies=Form()):
-    with open(COOKIES_PATH, 'w') as file:
+    with open(BingChatConversation.cookies_path, 'w') as file:
         file.write(cookies)
 
     return '修改成功'
@@ -84,7 +74,6 @@ def update_cookies(cookies=Form()):
 
 @app.get(f"{API_PREFIX}/api/conversation_list")
 def get_conversation_list(bot_type: str = ''):
-    #
     if bot_type:
         conversation_list = get_conversation_class(bot_type).conversation_list
     else:
@@ -106,7 +95,7 @@ async def ask_question(
         conversation_id = ''
 
     ConversationClass = get_conversation_class(bot_type)
-    conversation = ConversationClass.create_or_get_conversation(
+    conversation = ConversationClass.create_conversation(
         conversation_id)
 
     record = await conversation.ask(question)
@@ -114,17 +103,17 @@ async def ask_question(
     if record:
         if not conversation_id:
             scheduler.add_job(
-                add_conversation, args=[conversation],
+                chat_db.add_conversation, args=[conversation],
                 trigger='date'
             )
         else:
             scheduler.add_job(
-                truncate_conversation, args=[conversation],
+                chat_db.truncate_conversation, args=[conversation],
                 trigger='date'
             )
 
         scheduler.add_job(
-            add_record, args=[record],
+            chat_db.add_record, args=[record],
             trigger='date'
         )
     return conversation.to_info()
@@ -150,7 +139,7 @@ def update_conversation(
     if conversation:
         conversation.name = name
         scheduler.add_job(
-            rename_conversation, args=[conversation],
+            chat_db.rename_conversation, args=[conversation],
             trigger='date'
         )
 
@@ -164,7 +153,7 @@ def delete_conversation(conversation_id, bot_type: str = DEFAULT_BOT_TYPE):
     ConversationClass.remove_conversation(conversation_id)
 
     scheduler.add_job(
-        hide_conversation, args=[conversation_id],
+        chat_db.hide_conversation, args=[conversation_id],
         trigger='date'
     )
 
