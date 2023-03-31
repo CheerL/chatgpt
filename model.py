@@ -6,11 +6,7 @@ import openai
 import tiktoken
 
 from typing import Type
-<<<<<<< HEAD
-from speech import text_to_speech
-=======
 #from speech import text_to_speech
->>>>>>> 616b133 (save)
 from EdgeGPT import Chatbot, HEADERS, append_identifier
 from datetime import datetime, timezone
 
@@ -60,11 +56,7 @@ class ChatRecord:
             tts_dir = self.__getattribute__(f'{tts_type}_dir')
             wav_path = os.path.join(
                 tts_dir, f'{self.record_id}.wav').replace('-', '_')
-<<<<<<< HEAD
-            text_to_speech(text, wav_path)
-=======
             #text_to_speech(text, wav_path)
->>>>>>> 616b133 (save)
             self.__setattr__(f'{tts_type}_voice', wav_path)
             self.__setattr__(f'{tts_type}_ts', time.time())
 
