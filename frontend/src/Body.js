@@ -32,7 +32,8 @@ const AskBox = () => {
   const on_click = () => {
     if (store.loading) return
 
-    store.ask(question, store.activated_conversation_id)
+    // store.ask(question, store.activated_conversation_id)
+    store.ask_stream(question, store.activated_conversation_id)
     // store.switch_loading()
     setQuestion('')
   }
@@ -115,9 +116,9 @@ const ChatPair = ({ record }) => {
   const answer_text = record.answer.replace(regex, '[$1]')
   // const answer_sources = record.sources.join('\n')
   let answer = ''
-  if (record.sources.length > 0) {
+  if (record.sources && record.sources.length > 0) {
     const source_links = record.sources.map(source => {
-      const regex = /\[(\d+)\]:\s+(.+)\s+\"(.+)\"/g;
+      const regex = /\[(\d+)\]:\s+(.+)\s+\"(.*)\"/g;
       const [, num, link, title] = regex.exec(source)
       return <div key={num}>
         <a href={link} className='text-gray-600 text-sm hover:text-blue-600'>

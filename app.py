@@ -1,12 +1,16 @@
+import json
 import os
-
+import time
 from typing import Type
-from model import BingChatConversation, OpenaiChatConversation
-from database import ChatDatabase
-from fastapi import FastAPI, Form, Query, Body
-from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from fastapi import Body, FastAPI, Form, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from sse_starlette.sse import EventSourceResponse
+
+from database import ChatDatabase
+from model import BingChatConversation, ChatRecord, OpenaiChatConversation
 
 API_PREFIX = os.getenv('API_PREFIX')
 DEFAULT_BOT_TYPE = os.getenv('DEFAULT_BOT_TYPE', '')
@@ -119,6 +123,55 @@ async def ask_question(
     return conversation.to_info()
 
 
+@app.post(f"{API_PREFIX}/api/question_stream")
+async def ask_question_stream(
+    payload=Body(),
+    bot_type: str = Query(DEFAULT_BOT_TYPE, regex='^(bing|openai)$')
+):
+    payload = json.loads(payload)
+    question = payload['question']
+    conversation_id = payload['conversation_id']
+
+    async def stream(conversation):
+        async for result in conversation.ask_stream(question):
+            if isinstance(result, str):
+                yield {
+                    'event': 'partial_message',
+                    'data': result,
+                    'retry': 30*1000
+                }
+
+            elif isinstance(result, ChatRecord):
+                if not conversation_id:
+                    scheduler.add_job(
+                        chat_db.add_conversation, args=[conversation],
+                        trigger='date'
+                    )
+                else:
+                    scheduler.add_job(
+                        chat_db.truncate_conversation, args=[conversation],
+                        trigger='date'
+                    )
+
+                scheduler.add_job(
+                    chat_db.add_record, args=[result],
+                    trigger='date'
+                )
+                yield {
+                    'event': 'all_message',
+                    'data': json.dumps({'record': result.to_summary(), **conversation.to_info()}),
+                    'retry': 30*1000
+                }
+
+    if conversation_id == '$$new$$':
+        conversation_id = ''
+
+    ConversationClass = get_conversation_class(bot_type)
+    conversation = ConversationClass.create_conversation(conversation_id)
+
+    return EventSourceResponse(stream(conversation))
+
+
 @app.get(f"{API_PREFIX}/api/conversation")
 def get_conversation(conversation_id, bot_type: str = DEFAULT_BOT_TYPE):
     ConversationClass = get_conversation_class(bot_type)
@@ -158,3 +211,15 @@ def delete_conversation(conversation_id, bot_type: str = DEFAULT_BOT_TYPE):
     )
 
     return get_conversation_list(bot_type)
+
+
+async def event_gernerator():
+    for i in range(10):
+        print(f"client connected!!! {i}")
+        yield i
+        time.sleep(0.5)
+
+
+@app.get(f'{API_PREFIX}/api/stream')
+async def run(request: Request):
+    return EventSourceResponse(event_gernerator(request))

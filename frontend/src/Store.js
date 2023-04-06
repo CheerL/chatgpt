@@ -2,6 +2,7 @@ import React from "react"
 import { Observer, useLocalObservable } from "mobx-react-lite";
 import axios from 'axios'
 import config from "./config"
+import { fetchEventSource } from "@microsoft/fetch-event-source";
 
 /**
  * @typedef {Object} Record
@@ -38,6 +39,7 @@ import config from "./config"
  * @property {Record[]} records
  * @property {boolean} loading
  * @property {string} bot_type
+ * @property {string} API_URL
  * 
  * @property {function(string): ConversationWithRecord} get_conversation_by_id
  * @property {function(string): null} change_activated_conversation
@@ -58,7 +60,8 @@ const store = {
   activated_conversation_id: '',
   records: [],
   loading: false,
-  bot_type: 'openai',
+  bot_type: 'bing',
+  API_URL: api_url,
 
   get_conversation_by_id(conversation_id) {
     if (conversation_id === undefined) {
@@ -88,6 +91,18 @@ const store = {
         this.records.push(record)
       }
     })
+  },
+  update_record(record_id, new_record) {
+    const index = this.records.findIndex(
+      record => record.record_id === record_id
+    )
+    if (index >= 0) {
+      this.records[index] = {
+        ...this.records[index], ...new_record
+      }
+    } else {
+      this.records.push({ record_id, ...new_record })
+    }
   },
   update_conversation(conversation_id, new_conversation) {
     const index = this.conversation_list.findIndex(
@@ -160,6 +175,62 @@ const store = {
       this.loading = false
     })
   },
+  ask_stream(question, conversation_id) {
+    this.loading = true
+    const url = `${api_url}/question_stream?bot_type=${this.bot_type}`
+
+    const index = this.conversation_list.findIndex(
+      conversation => conversation.conversation_id === conversation_id
+    )
+    let init_conversation_id
+    if (index < 0) {
+      init_conversation_id = 'tmp_conversation_id' + Math.random().toString(36).substr(2, 9)
+      this.update_conversation(init_conversation_id, { name: '加载中', live: true, bot_type: this.bot_type })
+    } else {
+      init_conversation_id = conversation_id
+    }
+
+    const init_record_id = 'tmp_record_id' + Math.random().toString(36).substr(2, 9)
+    this.add_records([{
+      conversation_id: init_conversation_id,
+      record_id: init_record_id,
+      question,
+      answer: '思考中...',
+      answer_ts: Date.now() / 1000,
+      question_ts: Date.now() / 1000
+    }])
+    this.change_activated_conversation(init_conversation_id)
+
+    // const es = new EventSource(url, {
+    fetchEventSource(url, {
+      method: 'POST',
+      headers: {
+        Accept: "text/event-stream",
+        ContentType: 'application/json'
+      },
+      body: JSON.stringify({
+        question,
+        conversation_id
+      }),
+      retry: 0,
+      onmessage: (result) => {
+        if (result.event === 'all_message') {
+          const { record, records, conversation_id, name, live, bot_type } = JSON.parse(result.data)
+
+          this.update_record(init_record_id, record)
+          this.update_conversation(init_conversation_id, { conversation_id, name, live, bot_type })
+          this.add_records(records)
+          this.change_activated_conversation(conversation_id)
+          this.loading = false
+        } else if (result.event === 'partial_message') {
+          const answer = result.data
+          if (answer !== undefined && answer !== null && answer !== '') {
+            this.update_record(init_record_id, { answer })
+          }
+        }
+      }
+    })
+  },
   switch_bot_type(bot_type) {
     if (bot_type === this.bot_type) {
       return
@@ -190,7 +261,7 @@ const store = {
         bot_type
       }
     }).then(result => {
-      console.log(result)
+      // console.log(result)
       const index = this.conversation_list.findIndex(
         conversation => conversation.conversation_id === conversation_id
       )

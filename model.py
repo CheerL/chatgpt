@@ -1,21 +1,20 @@
 import os
-from tarfile import ENCODING
 import time
 import uuid
+from datetime import datetime, timezone
+from typing import Type
+
 import openai
 import tiktoken
-
-from typing import Type
-#from speech import text_to_speech
-from EdgeGPT import Chatbot, HEADERS, append_identifier
-from datetime import datetime, timezone
-
 import websockets.client as websockets
+# from speech import text_to_speech
+from EdgeGPT import HEADERS, Chatbot, append_identifier
 
 COOKIES_PATH = os.getenv("COOKIES_PATH", '')
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", '')
 OPENAI_SYSTEM_PROMPT = os.getenv("OPENAI_SYSTEM_PROMPT", '')
 MAX_WAIT_TIME = 5 * 60 * 60
+
 
 def str2ts(date_str):
     ts = datetime.strptime(
@@ -56,7 +55,7 @@ class ChatRecord:
             tts_dir = self.__getattribute__(f'{tts_type}_dir')
             wav_path = os.path.join(
                 tts_dir, f'{self.record_id}.wav').replace('-', '_')
-            #text_to_speech(text, wav_path)
+            # text_to_speech(text, wav_path)
             self.__setattr__(f'{tts_type}_voice', wav_path)
             self.__setattr__(f'{tts_type}_ts', time.time())
 
@@ -99,7 +98,7 @@ class ChatConversation:
 
     @classmethod
     def create_conversation(
-        cls, conversation_id: str = '', 
+        cls, conversation_id: str = '',
         name: str = '', live: bool = True,
         **kwargs
     ) -> Type['ChatConversation']:
@@ -315,8 +314,77 @@ class BingChatConversation(ChatConversation):
             print(e)
             raise e
 
+    async def ask_stream(self, question: str) -> ChatRecord | str:
+        if not self.live:
+            return
+        try:
+            async for final, response in self.bot.ask_stream(question):
+                if not final:
+                    yield response
+                else:
+                    response = response['item']
+                    print(response)
+
+                    status = response.get('result', {}).get('value', '')
+                    if status != 'Success':
+                        error_message = response.get(
+                            'result', {}).get('message', '')
+                        print(error_message)
+                        if status == 'InvalidSession':
+                            await self.kill()
+                        return
+
+                    conversation_id = response['conversationId']
+                    if conversation_id != self.conversation_id:
+                        self.conversation_id = conversation_id
+
+                    record_id = response['requestId']
+                    [question_item, answer_item] = response['messages']
+                    question_ts = str2ts(question_item['timestamp'])
+
+                    answer = answer_item.get('text', '').strip(
+                    ) or answer_item.get('hiddenText', '').strip()
+                    answer_ts = str2ts(answer_item['timestamp'])
+                    record = self.add_record(
+                        record_id, question, answer,
+                        question_ts=question_ts, answer_ts=answer_ts
+                    )
+
+                    max_times = response.get('throttling', {}).get(
+                        'maxNumUserMessagesInConversation', 0)
+                    now_times = response.get('throttling', {}).get(
+                        'numUserMessagesInConversation', 0)
+                    left_times = max_times - now_times
+                    origin = response.get('contentOrigin', '')
+                    if left_times < 0:
+                        await self.kill()
+                    elif 'New topic' in answer:
+                        await self.kill()
+                    elif origin == 'Apology' or origin == 'TurnLimiter':
+                        await self.kill()
+                    else:
+                        suggestions = [
+                            s.get('text', '') for s in
+                            answer_item.get('suggestedResponses', [])
+                        ]
+                        sources = [
+                            source for source in
+                            answer_item.get('adaptiveCards', [{}])[0].get(
+                                'body', [{}])[0].get('text', '').split('\n')
+                            if source.startswith('[') and source.endswith('"')
+                        ]
+                        record.suggestions = suggestions
+                        record.sources = sources
+
+                    # record.answer_tts()
+                    yield record
+        except Exception as e:
+            print(e)
+            raise e
 
 # 继承 ChatConversation 的类, for Openai GPT 3.5 api
+
+
 class OpenaiChatConversation(ChatConversation):
     question_dir = os.path.join('static', 'question', 'openai')
     answer_dir = os.path.join('static', 'answer', 'openai')
