@@ -4,7 +4,7 @@ const config = {
     // API_URL: "https://home.cheerl.space:9080/gpt/api"
   },
   production: {
-    API_URL: "https://aws.cheerl.space/gpt/api"
+    API_URL: "/gpt/api"
   }
 };
 
