@@ -1,3 +1,5 @@
+from ast import Not
+import json
 import os
 import time
 import uuid
@@ -8,7 +10,7 @@ import openai
 import tiktoken
 import websockets.client as websockets
 # from speech import text_to_speech
-from EdgeGPT import HEADERS, Chatbot, append_identifier
+from EdgeGPT.EdgeGPT import Chatbot, ConversationStyle
 
 COOKIES_PATH = os.getenv("COOKIES_PATH", '')
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", '')
@@ -18,7 +20,8 @@ MAX_WAIT_TIME = 5 * 60 * 60
 
 def str2ts(date_str):
     ts = datetime.strptime(
-        date_str[:26], "%Y-%m-%dT%H:%M:%S.%f"
+        # date_str[:26], "%Y-%m-%dT%H:%M:%S.%f"
+        date_str[:22], '%Y-%m-%dT%H:%M:%S.%f'
     ).replace(
         tzinfo=timezone.utc
     ).timestamp()
@@ -97,7 +100,7 @@ class ChatConversation:
         return None
 
     @classmethod
-    def create_conversation(
+    async def create_conversation(
         cls, conversation_id: str = '',
         name: str = '', live: bool = True,
         **kwargs
@@ -125,6 +128,7 @@ class ChatConversation:
             answer_dir=cls.answer_dir,
             **kwargs
         )
+        await conversation.create_bot()
         cls.conversation_list.append(conversation)
         return conversation
 
@@ -194,6 +198,9 @@ class ChatConversation:
 
     async def ask(self, question: str) -> ChatRecord | None:
         raise NotImplementedError('ask not implemented')
+    
+    async def create_bot(self) -> None:
+        raise NotImplementedError('create_bot not implemented')
 
 
 # 继承 ChatConversation 的类, for Bing Chatbot
@@ -217,7 +224,8 @@ class BingChatConversation(ChatConversation):
             if time.time() - latest_answer_ts > MAX_WAIT_TIME:
                 await conversation.kill()
             else:
-                await conversation.keep_alive()
+                # await conversation.keep_alive()
+                pass
 
     def __init__(
         self, conversation_id: str, name: str,
@@ -225,24 +233,29 @@ class BingChatConversation(ChatConversation):
         live: bool = True
     ) -> None:
         super().__init__(conversation_id, name, question_dir, answer_dir, live)
-        if live:
-            self.bot = Chatbot(cookiePath=self.cookies_path)
+        
+    async def create_bot(self):
+        if self.live:
+            cookies = json.loads(open(self.cookies_path, encoding="utf-8").read())
+            # print(cookies)
+            self.bot = await Chatbot.create(cookies=cookies)
             self.conversation_id = self.bot.chat_hub.request.conversation_id
         else:
             self.bot = None
-            self.conversation_id = conversation_id or str(uuid.uuid4())
+            self.conversation_id = self.conversation_id or str(uuid.uuid4())
 
     async def keep_alive(self) -> None:
-        if self.live:
-            if not self.bot.chat_hub.wss or self.bot.chat_hub.wss.closed:
-                self.bot.chat_hub.wss = await websockets.connect(
-                    "wss://sydney.bing.com/sydney/ChatHub",
-                    extra_headers=HEADERS,
-                    max_size=None,
-                )
-            wss = self.bot.chat_hub.wss
-            await wss.send(append_identifier({"protocol": "json", "version": 1}))
-            await wss.recv()
+        # if self.live:
+        #     if not self.bot.chat_hub.wss or self.bot.chat_hub.wss.closed:
+        #         self.bot.chat_hub.wss = await websockets.connect(
+        #             "wss://sydney.bing.com/sydney/ChatHub",
+        #             extra_headers=HEADERS,
+        #             max_size=None,
+        #         )
+        #     wss = self.bot.chat_hub.wss
+        #     await wss.send(append_identifier({"protocol": "json", "version": 1}))
+        #     await wss.recv()
+        raise NotImplementedError('keep_alive not implemented')
 
     async def kill(self) -> None:
         if self.live:
@@ -318,7 +331,10 @@ class BingChatConversation(ChatConversation):
         if not self.live:
             return
         try:
-            async for final, response in self.bot.ask_stream(question):
+            async for final, response in self.bot.ask_stream(
+                question,
+                conversation_style=ConversationStyle.balanced
+                ):
                 if not final:
                     yield response
                 else:
@@ -339,12 +355,13 @@ class BingChatConversation(ChatConversation):
                         self.conversation_id = conversation_id
 
                     record_id = response['requestId']
-                    [question_item, answer_item] = response['messages']
-                    question_ts = str2ts(question_item['timestamp'])
+                    question_item = response['messages'][0]
+                    answer_item = response['messages'][-1]
+                    question_ts = str2ts(question_item['createdAt'])
 
                     answer = answer_item.get('text', '').strip(
                     ) or answer_item.get('hiddenText', '').strip()
-                    answer_ts = str2ts(answer_item['timestamp'])
+                    answer_ts = str2ts(answer_item['createdAt'])
                     record = self.add_record(
                         record_id, question, answer,
                         question_ts=question_ts, answer_ts=answer_ts
@@ -413,6 +430,9 @@ class OpenaiChatConversation(ChatConversation):
         self.top_p = top_p
         self.frequency_penalty = frequency_penalty
         self.truncate_rate = truncate_rate
+
+    async def create_bot(self):
+        pass
 
     def get_messages(self) -> list[dict[str, str]]:
         messages: list[dict[str, str]] = [

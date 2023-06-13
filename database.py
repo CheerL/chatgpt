@@ -104,12 +104,12 @@ class ChatDatabase:
                 continue
 
             if conversation_db.bot_type == 'bing':
-                conversation = BingChatConversation.create_conversation(
+                conversation = await BingChatConversation.create_conversation(
                     conversation_id=conversation_db.conversation_id,
                     name=conversation_db.name, live=False
                 )
             elif conversation_db.bot_type == 'openai':
-                conversation = OpenaiChatConversation.create_conversation(
+                conversation = await OpenaiChatConversation.create_conversation(
                     conversation_id=conversation_db.conversation_id, 
                     name=conversation_db.name, live=True,
                     truncated_num=conversation_db.truncated_num,

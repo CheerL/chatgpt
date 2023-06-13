@@ -99,7 +99,7 @@ async def ask_question(
         conversation_id = ''
 
     ConversationClass = get_conversation_class(bot_type)
-    conversation = ConversationClass.create_conversation(
+    conversation = await ConversationClass.create_conversation(
         conversation_id)
 
     record = await conversation.ask(question)
@@ -167,7 +167,7 @@ async def ask_question_stream(
         conversation_id = ''
 
     ConversationClass = get_conversation_class(bot_type)
-    conversation = ConversationClass.create_conversation(conversation_id)
+    conversation = await ConversationClass.create_conversation(conversation_id)
 
     return EventSourceResponse(stream(conversation))
 
